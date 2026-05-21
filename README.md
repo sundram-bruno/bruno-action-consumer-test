@@ -1,6 +1,6 @@
 # bruno-action-consumer-test
 
-End-to-end consumer test for [`sundram-bruno/bruno-run-action`](https://github.com/sundram-bruno/bruno-run-action).
+End-to-end consumer test for the [`sundram-bruno/bruno-run-action`](https://github.com/sundram-bruno/bruno-run-action) composite action.
 
 Validates that the action behaves correctly when used the way a real Marketplace consumer would use it:
 - `uses: sundram-bruno/bruno-run-action@main`
