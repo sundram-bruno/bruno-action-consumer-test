@@ -9,14 +9,14 @@ on:
 
 jobs:
   bruno:
-    name: Run Bruno collection via the action
+    name: Bruno collection via the action
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v6
 
-      - name: Run Bruno
+      - name: Bruno CLI
         id: bruno
         uses: sundram-bruno/bruno-run-action@main
         with:
