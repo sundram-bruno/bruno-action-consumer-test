@@ -1,0 +1,55 @@
+name: API tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  bruno:
+    name: Run Bruno collection via the action
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run Bruno
+        id: bruno
+        uses: sundram-bruno/bruno-run-action@main
+        with:
+          working-directory: bruno
+          command: >-
+            run --env ci --sandbox developer
+            --reporter-junit reports/results.xml
+            --reporter-html  reports/results.html
+            --reporter-json  reports/results.json
+
+      - name: Inspect outputs
+        run: |
+          set -euo pipefail
+          echo "exit-code   = ${{ steps.bruno.outputs.exit-code }}"
+          echo "passed      = ${{ steps.bruno.outputs.passed }}"
+          echo "failed      = ${{ steps.bruno.outputs.failed }}"
+          echo "total       = ${{ steps.bruno.outputs.total }}"
+          echo "duration-ms = ${{ steps.bruno.outputs.duration-ms }}"
+          echo "report-junit= ${{ steps.bruno.outputs.report-junit }}"
+          echo "report-json = ${{ steps.bruno.outputs.report-json }}"
+          echo "report-html = ${{ steps.bruno.outputs.report-html }}"
+          test "${{ steps.bruno.outputs.exit-code }}" = "0"
+          test "${{ steps.bruno.outputs.failed }}" = "0"
+          test -f "${{ steps.bruno.outputs.report-junit }}"
+          test -f "${{ steps.bruno.outputs.report-json }}"
+          test -f "${{ steps.bruno.outputs.report-html }}"
+
+      - name: Upload Bruno reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bruno-reports
+          path: |
+            ${{ steps.bruno.outputs.report-junit }}
+            ${{ steps.bruno.outputs.report-json }}
+            ${{ steps.bruno.outputs.report-html }}
