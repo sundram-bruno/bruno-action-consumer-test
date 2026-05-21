@@ -35,14 +35,11 @@ jobs:
           echo "failed      = ${{ steps.bruno.outputs.failed }}"
           echo "total       = ${{ steps.bruno.outputs.total }}"
           echo "duration-ms = ${{ steps.bruno.outputs.duration-ms }}"
-          echo "report-junit= ${{ steps.bruno.outputs.report-junit }}"
-          echo "report-json = ${{ steps.bruno.outputs.report-json }}"
-          echo "report-html = ${{ steps.bruno.outputs.report-html }}"
           test "${{ steps.bruno.outputs.exit-code }}" = "0"
           test "${{ steps.bruno.outputs.failed }}" = "0"
-          test -f "${{ steps.bruno.outputs.report-junit }}"
-          test -f "${{ steps.bruno.outputs.report-json }}"
-          test -f "${{ steps.bruno.outputs.report-html }}"
+          test -f bruno/reports/results.xml
+          test -f bruno/reports/results.json
+          test -f bruno/reports/results.html
 
       - name: Upload Bruno reports
         if: always()
@@ -50,6 +47,6 @@ jobs:
         with:
           name: bruno-reports
           path: |
-            ${{ steps.bruno.outputs.report-junit }}
-            ${{ steps.bruno.outputs.report-json }}
-            ${{ steps.bruno.outputs.report-html }}
+            bruno/reports/results.xml
+            bruno/reports/results.json
+            bruno/reports/results.html
