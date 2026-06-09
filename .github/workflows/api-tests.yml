@@ -18,7 +18,7 @@ jobs:
 
       - name: Bruno CLI
         id: bruno
-        uses: sundram-bruno/bruno-run-action@main
+        uses: sundram-bruno/bruno-cli-action@main
         with:
           working-directory: bruno
           command: >-
