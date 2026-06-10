@@ -1,4 +1,4 @@
-name: API tests
+name: 00 — Basic (outputs only)
 
 on:
   push:
@@ -21,11 +21,7 @@ jobs:
         uses: usebruno/bruno-cli-action@v0
         with:
           working-directory: bruno
-          command: >-
-            run --env ci --sandbox developer
-            --reporter-junit reports/results.xml
-            --reporter-html  reports/results.html
-            --reporter-json  reports/results.json
+          command: 'run --env ci'
 
       - name: Inspect outputs
         run: |
@@ -37,16 +33,4 @@ jobs:
           echo "duration-ms = ${{ steps.bruno.outputs.duration-ms }}"
           test "${{ steps.bruno.outputs.exit-code }}" = "0"
           test "${{ steps.bruno.outputs.failed }}" = "0"
-          test -f bruno/reports/results.xml
-          test -f bruno/reports/results.json
-          test -f bruno/reports/results.html
-
-      - name: Upload Bruno reports
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: bruno-reports
-          path: |
-            bruno/reports/results.xml
-            bruno/reports/results.json
-            bruno/reports/results.html
+          test "${{ steps.bruno.outputs.total }}" = "2"

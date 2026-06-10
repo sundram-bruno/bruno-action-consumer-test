@@ -1,0 +1,37 @@
+# README recipe: "Artifact upload with header sanitization"
+# What you should see: a downloadable workflow artifact named
+# bruno-report-sanitized-<run_id> at the bottom of the run page. The JUnit
+# XML inside has Authorization / Cookie / X-Tenant-Token headers redacted.
+
+name: 07 — Artifact upload (sanitized headers)
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bruno:
+    name: Run + upload artifact with header redaction
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: usebruno/bruno-cli-action@v0
+        with:
+          working-directory: bruno
+          command: >-
+            run --env ci
+            --reporter-junit results-sanitized.xml
+            --reporter-skip-headers "Authorization Cookie X-Tenant-Token"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: bruno-report-sanitized-${{ github.run_id }}
+          path: bruno/results-sanitized.xml

@@ -1,0 +1,20 @@
+meta {
+  name: posts
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/posts/1
+}
+
+assert {
+  res.status: eq 200
+  res.body.id: eq 1
+}
+
+tests {
+  test("first post returns id 1", function() {
+    expect(res.getBody().id).to.equal(1);
+  });
+}

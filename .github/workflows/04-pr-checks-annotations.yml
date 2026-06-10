@@ -1,0 +1,35 @@
+# README recipe: "Workflow-level annotations on PR Checks"
+# What you should see: PR Checks tab shows EnricoMi's check run with one
+# annotation per failed assertion, expandable for details.
+
+name: 04 — PR Checks annotations
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  pull-requests: write
+  checks: write
+  contents: read
+
+jobs:
+  bruno:
+    name: Run + per-test annotations on Checks tab
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: usebruno/bruno-cli-action@v0
+        with:
+          working-directory: bruno
+          command: 'run --env ci --reporter-junit results-annotations.xml'
+
+      - uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: bruno/results-annotations.xml
+          check_name: Bruno (annotations)
+          comment_mode: off
+          report_individual_runs: true
