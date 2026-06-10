@@ -1,0 +1,33 @@
+# README recipe: "Checks tab UI via dorny/test-reporter"
+# What you should see: a separate check run labelled "Bruno API tests" in
+# the PR Checks tab with structured per-test results.
+
+name: 05 — Checks tab via dorny
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  checks: write
+  contents: read
+
+jobs:
+  bruno:
+    name: Run + dorny test-reporter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: usebruno/bruno-cli-action@v0
+        with:
+          working-directory: bruno
+          command: 'run posts.bru users.bru --env ci --reporter-junit results-dorny.xml'
+
+      - uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Bruno API tests (dorny)
+          path: bruno/results-dorny.xml
+          reporter: java-junit

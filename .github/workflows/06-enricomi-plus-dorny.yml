@@ -1,0 +1,42 @@
+# README recipe: "EnricoMi + dorny together"
+# What you should see: PR Conversation gets EnricoMi sticky comment; PR
+# Checks tab shows two distinct check runs (one from EnricoMi, one from
+# dorny) plus EnricoMi's annotations.
+
+name: 06 — EnricoMi + dorny combined
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  pull-requests: write
+  checks: write
+  contents: read
+
+jobs:
+  bruno:
+    name: Run + both downstream reporters
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: usebruno/bruno-cli-action@v0
+        with:
+          working-directory: bruno
+          command: 'run posts.bru users.bru --env ci --reporter-junit results-combined.xml'
+
+      - uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: bruno/results-combined.xml
+          check_name: Bruno (combined - EnricoMi)
+          comment_mode: always
+
+      - uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Bruno API tests (combined - dorny)
+          path: bruno/results-combined.xml
+          reporter: java-junit

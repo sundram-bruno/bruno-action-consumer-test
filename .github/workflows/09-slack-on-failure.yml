@@ -1,0 +1,50 @@
+# README recipe: "Slack notification on failure"
+# Prerequisite: configure a repo secret named SLACK_WEBHOOK_URL. Without it,
+# the notification step is skipped (the workflow still demonstrates the
+# `failed != '0'` conditional pattern).
+#
+# What you should see (when secret is set + a test fails): a Slack message
+# in the channel mapped to the webhook with passed/failed/duration and a
+# link to the run.
+
+name: 09 — Slack notification on failure
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bruno:
+    name: Run + notify Slack on failure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - id: bruno
+        uses: usebruno/bruno-cli-action@v0
+        continue-on-error: true
+        with:
+          working-directory: bruno
+          command: 'run --env ci'
+
+      - name: Notify Slack on failure
+        if: steps.bruno.outputs.failed != '0' && env.SLACK_WEBHOOK_URL != ''
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "Bruno tests failed: ${{ steps.bruno.outputs.failed }}/${{ steps.bruno.outputs.total }} requests failed on ${{ github.ref_name }}",
+              "blocks": [{
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*Bruno test failures on ${{ github.ref_name }}*\n${{ steps.bruno.outputs.failed }}/${{ steps.bruno.outputs.total }} requests failed in ${{ steps.bruno.outputs.duration-ms }}ms. <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
+                }
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

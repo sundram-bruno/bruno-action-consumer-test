@@ -1,0 +1,42 @@
+# README recipe: "Simple non-sticky PR comment via gh CLI"
+# What you should see: a new comment posted to the PR on every workflow
+# run. Each re-run adds another comment (no in-place update).
+
+name: 10 — gh CLI PR comment
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  bruno:
+    name: Run + post simple PR comment via gh CLI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - id: bruno
+        uses: usebruno/bruno-cli-action@v0
+        with:
+          working-directory: bruno
+          command: 'run posts.bru users.bru --env ci'
+
+      - name: Post PR comment via gh CLI
+        if: always() && github.event_name == 'pull_request'
+        run: |
+          if [ "${{ steps.bruno.outputs.failed }}" -gt 0 ]; then
+            ICON="❌"
+            STATUS="${{ steps.bruno.outputs.passed }}/${{ steps.bruno.outputs.total }} passed, ${{ steps.bruno.outputs.failed }} failed"
+          else
+            ICON="✅"
+            STATUS="${{ steps.bruno.outputs.total }}/${{ steps.bruno.outputs.total }} passed"
+          fi
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "${ICON} **Bruno:** ${STATUS} in ${{ steps.bruno.outputs.duration-ms }}ms · [view run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

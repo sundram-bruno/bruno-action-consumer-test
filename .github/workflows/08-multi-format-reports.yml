@@ -1,0 +1,41 @@
+# README recipe: "Multiple report formats (JUnit + HTML + JSON)"
+# What you should see: a downloadable artifact containing all three report
+# formats. The HTML opens as a styled report; JSON is consumable by custom
+# dashboards.
+
+name: 08 — Multi-format reports
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bruno:
+    name: Run + upload junit, html, and json reports
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: usebruno/bruno-cli-action@v0
+        with:
+          working-directory: bruno
+          command: >-
+            run posts.bru users.bru --env ci
+            --reporter-junit results-multi.xml
+            --reporter-html  report-multi.html
+            --reporter-json  report-multi.json
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: bruno-reports-multi-${{ github.run_id }}
+          path: |
+            bruno/results-multi.xml
+            bruno/report-multi.html
+            bruno/report-multi.json

@@ -1,0 +1,21 @@
+meta {
+  name: users
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/users/2
+}
+
+assert {
+  res.status: eq 200
+  res.body.id: eq 2
+}
+
+tests {
+  test("user 2 has a non-empty name", function() {
+    expect(res.getBody().name).to.be.a("string");
+    expect(res.getBody().name.length).to.be.greaterThan(0);
+  });
+}
