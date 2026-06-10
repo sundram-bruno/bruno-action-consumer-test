@@ -23,7 +23,7 @@ jobs:
       - uses: usebruno/bruno-cli-action@v0
         with:
           working-directory: bruno
-          command: 'run --env ci --reporter-junit results-dorny.xml'
+          command: 'run posts.bru users.bru --env ci --reporter-junit results-dorny.xml'
 
       - uses: dorny/test-reporter@v1
         if: always()

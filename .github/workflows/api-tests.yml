@@ -21,7 +21,7 @@ jobs:
         uses: usebruno/bruno-cli-action@v0
         with:
           working-directory: bruno
-          command: 'run --env ci'
+          command: 'run posts.bru users.bru --env ci'
 
       - name: Inspect outputs
         run: |

@@ -29,7 +29,7 @@ jobs:
       - uses: usebruno/bruno-cli-action@v0
         with:
           working-directory: bruno
-          command: 'run --env ${{ matrix.env }} --reporter-junit results-${{ matrix.env }}.xml'
+          command: 'run posts.bru users.bru --env ${{ matrix.env }} --reporter-junit results-${{ matrix.env }}.xml'
 
       - uses: actions/upload-artifact@v7
         if: always()

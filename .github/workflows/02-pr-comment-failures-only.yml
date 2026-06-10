@@ -22,6 +22,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - uses: usebruno/bruno-cli-action@v0
+        continue-on-error: true   # workflow check stays green; EnricoMi still posts failure comment
         with:
           working-directory: bruno
           command: 'run --env ci --reporter-junit results-failures-only.xml'

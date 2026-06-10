@@ -1,0 +1,20 @@
+meta {
+  name: intentional-fail
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/posts/1
+}
+
+assert {
+  res.status: eq 999
+  res.body.id: eq 42
+}
+
+tests {
+  test("this test is deliberately wrong to demonstrate failure surfaces", function() {
+    expect(res.getBody().id).to.equal(999);
+  });
+}

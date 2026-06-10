@@ -26,7 +26,7 @@ jobs:
       - uses: usebruno/bruno-cli-action@v0
         with:
           working-directory: bruno
-          command: 'run --env ci --reporter-junit results-step-summary.xml'
+          command: 'run posts.bru users.bru --env ci --reporter-junit results-step-summary.xml'
 
       - uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
