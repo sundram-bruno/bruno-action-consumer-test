@@ -26,7 +26,7 @@ jobs:
         with:
           working-directory: bruno
           command: >-
-            run posts.bru users.bru --env ci
+            run posts.bru users.bru comments.bru --env ci
             --reporter-junit results-sanitized.xml
             --reporter-skip-headers "Authorization Cookie X-Tenant-Token"
 
