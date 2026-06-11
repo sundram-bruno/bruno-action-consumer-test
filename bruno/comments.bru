@@ -1,0 +1,21 @@
+meta {
+  name: comments
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/comments/1
+}
+
+assert {
+  res.status: eq 200
+  res.body.postId: eq 1
+}
+
+tests {
+  test("comment payload has an email field", function() {
+    expect(res.getBody().email).to.be.a("string");
+    expect(res.getBody().email).to.include("@");
+  });
+}
