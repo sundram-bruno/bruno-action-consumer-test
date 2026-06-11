@@ -28,11 +28,13 @@ jobs:
           command: >-
             run posts.bru users.bru comments.bru --env ci
             --reporter-junit results-sanitized.xml
-	    --reporter-jnuit results-sanitized.html
+            --reporter-html results-sanitized.html
             --reporter-skip-headers "Authorization Cookie X-Tenant-Token"
 
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: bruno-report-sanitized-${{ github.run_id }}
-          path: bruno/results-sanitized.xml
+          path: |
+            bruno/results-sanitized.xml
+            bruno/results-sanitized.html
