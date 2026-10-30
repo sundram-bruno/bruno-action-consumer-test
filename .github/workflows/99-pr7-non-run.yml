@@ -1,0 +1,1006 @@
+# Verifies usebruno/bruno-cli-action PR #7 (BRU-4924) against the published v1.
+# PR job should be fully green; v1 baseline is expected to fail the docs/import cases.
+
+name: 99 PR7 non-run commands
+
+on:
+  push:
+    branches: ['verify/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pr:
+    name: PR #7 31ed2e4 (bru ${{ matrix.bru }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        bru: ['latest', '3.0.0']
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: "[run_pass] reset"
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[run_pass] run passing requests, auto JUnit"
+        id: run_pass
+        continue-on-error: true
+        uses: arpit-bruno/bruno-cli-action@31ed2e44653b27a660d0268bfdc91e8073bfda79
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: 'run posts.bru users.bru --env ci'
+
+      - name: "[run_pass] assert"
+        env:
+          EXIT: ${{ steps.run_pass.outputs.exit-code }}
+          PASSED: ${{ steps.run_pass.outputs.passed }}
+          FAILED: ${{ steps.run_pass.outputs.failed }}
+          TOTAL: ${{ steps.run_pass.outputs.total }}
+          DUR: ${{ steps.run_pass.outputs.duration-ms }}
+          OUTCOME: ${{ steps.run_pass.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" = 0 ]; then echo "PASS|run_pass|exit 0" >> "$R"; else echo "FAIL|run_pass|exit 0 ($GOT)" >> "$R"; fi
+          if [ "$OUTCOME" = success ]; then echo "PASS|run_pass|outcome success" >> "$R"; else echo "FAIL|run_pass|outcome success ($GOT)" >> "$R"; fi
+          if [ "$TOTAL" = 2 ]; then echo "PASS|run_pass|total 2" >> "$R"; else echo "FAIL|run_pass|total 2 ($GOT)" >> "$R"; fi
+          if [ "$PASSED" = 2 ]; then echo "PASS|run_pass|passed 2" >> "$R"; else echo "FAIL|run_pass|passed 2 ($GOT)" >> "$R"; fi
+          if [ "$FAILED" = 0 ]; then echo "PASS|run_pass|failed 0" >> "$R"; else echo "FAIL|run_pass|failed 0 ($GOT)" >> "$R"; fi
+          if [[ "$DUR" =~ ^[0-9]+$ ]]; then echo "PASS|run_pass|duration-ms numeric" >> "$R"; else echo "FAIL|run_pass|duration-ms numeric ($GOT)" >> "$R"; fi
+          if [ -s "$RUNNER_TEMP/bruno-junit.xml" ]; then echo "PASS|run_pass|auto JUnit written" >> "$R"; else echo "FAIL|run_pass|auto JUnit written ($GOT)" >> "$R"; fi
+
+      - name: "[run_fail] reset"
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[run_fail] run with failing request"
+        id: run_fail
+        continue-on-error: true
+        uses: arpit-bruno/bruno-cli-action@31ed2e44653b27a660d0268bfdc91e8073bfda79
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: 'run --env ci'
+
+      - name: "[run_fail] assert"
+        env:
+          EXIT: ${{ steps.run_fail.outputs.exit-code }}
+          PASSED: ${{ steps.run_fail.outputs.passed }}
+          FAILED: ${{ steps.run_fail.outputs.failed }}
+          TOTAL: ${{ steps.run_fail.outputs.total }}
+          DUR: ${{ steps.run_fail.outputs.duration-ms }}
+          OUTCOME: ${{ steps.run_fail.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" != 0 ]; then echo "PASS|run_fail|exit non-zero" >> "$R"; else echo "FAIL|run_fail|exit non-zero ($GOT)" >> "$R"; fi
+          if [ "$OUTCOME" = failure ]; then echo "PASS|run_fail|outcome failure" >> "$R"; else echo "FAIL|run_fail|outcome failure ($GOT)" >> "$R"; fi
+          if [ "$TOTAL" = 3 ]; then echo "PASS|run_fail|total 3" >> "$R"; else echo "FAIL|run_fail|total 3 ($GOT)" >> "$R"; fi
+          if [ "$FAILED" = 1 ]; then echo "PASS|run_fail|failed 1" >> "$R"; else echo "FAIL|run_fail|failed 1 ($GOT)" >> "$R"; fi
+          if [ "$PASSED" = 2 ]; then echo "PASS|run_fail|passed 2" >> "$R"; else echo "FAIL|run_fail|passed 2 ($GOT)" >> "$R"; fi
+          if [ -s "$RUNNER_TEMP/bruno-junit.xml" ]; then echo "PASS|run_fail|auto JUnit written" >> "$R"; else echo "FAIL|run_fail|auto JUnit written ($GOT)" >> "$R"; fi
+
+      - name: "[run_junit_space] reset"
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[run_junit_space] explicit --reporter-junit <path>"
+        id: run_junit_space
+        continue-on-error: true
+        uses: arpit-bruno/bruno-cli-action@31ed2e44653b27a660d0268bfdc91e8073bfda79
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: 'run posts.bru --env ci --reporter-junit out/space.xml'
+
+      - name: "[run_junit_space] assert"
+        env:
+          EXIT: ${{ steps.run_junit_space.outputs.exit-code }}
+          PASSED: ${{ steps.run_junit_space.outputs.passed }}
+          FAILED: ${{ steps.run_junit_space.outputs.failed }}
+          TOTAL: ${{ steps.run_junit_space.outputs.total }}
+          DUR: ${{ steps.run_junit_space.outputs.duration-ms }}
+          OUTCOME: ${{ steps.run_junit_space.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" = 0 ]; then echo "PASS|run_junit_space|exit 0" >> "$R"; else echo "FAIL|run_junit_space|exit 0 ($GOT)" >> "$R"; fi
+          if [ "$TOTAL" = 1 ]; then echo "PASS|run_junit_space|total 1" >> "$R"; else echo "FAIL|run_junit_space|total 1 ($GOT)" >> "$R"; fi
+          if [ -s bruno/out/space.xml ]; then echo "PASS|run_junit_space|user JUnit written" >> "$R"; else echo "FAIL|run_junit_space|user JUnit written ($GOT)" >> "$R"; fi
+          if [ ! -e "$RUNNER_TEMP/bruno-junit.xml" ]; then echo "PASS|run_junit_space|no auto JUnit" >> "$R"; else echo "FAIL|run_junit_space|no auto JUnit ($GOT)" >> "$R"; fi
+
+      - name: "[run_junit_eq] reset"
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[run_junit_eq] explicit --reporter-junit=<path>"
+        id: run_junit_eq
+        continue-on-error: true
+        uses: arpit-bruno/bruno-cli-action@31ed2e44653b27a660d0268bfdc91e8073bfda79
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: 'run posts.bru --env ci --reporter-junit=out/eq.xml'
+
+      - name: "[run_junit_eq] assert"
+        env:
+          EXIT: ${{ steps.run_junit_eq.outputs.exit-code }}
+          PASSED: ${{ steps.run_junit_eq.outputs.passed }}
+          FAILED: ${{ steps.run_junit_eq.outputs.failed }}
+          TOTAL: ${{ steps.run_junit_eq.outputs.total }}
+          DUR: ${{ steps.run_junit_eq.outputs.duration-ms }}
+          OUTCOME: ${{ steps.run_junit_eq.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" = 0 ]; then echo "PASS|run_junit_eq|exit 0" >> "$R"; else echo "FAIL|run_junit_eq|exit 0 ($GOT)" >> "$R"; fi
+          if [ "$TOTAL" = 1 ]; then echo "PASS|run_junit_eq|total 1" >> "$R"; else echo "FAIL|run_junit_eq|total 1 ($GOT)" >> "$R"; fi
+          if [ -s bruno/out/eq.xml ]; then echo "PASS|run_junit_eq|user JUnit written" >> "$R"; else echo "FAIL|run_junit_eq|user JUnit written ($GOT)" >> "$R"; fi
+          if [ ! -e "$RUNNER_TEMP/bruno-junit.xml" ]; then echo "PASS|run_junit_eq|no auto JUnit" >> "$R"; else echo "FAIL|run_junit_eq|no auto JUnit ($GOT)" >> "$R"; fi
+
+      - name: "[run_html] reset"
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[run_html] run with --reporter-html plus auto JUnit"
+        id: run_html
+        continue-on-error: true
+        uses: arpit-bruno/bruno-cli-action@31ed2e44653b27a660d0268bfdc91e8073bfda79
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: 'run posts.bru --env ci --reporter-html out/report.html'
+
+      - name: "[run_html] assert"
+        env:
+          EXIT: ${{ steps.run_html.outputs.exit-code }}
+          PASSED: ${{ steps.run_html.outputs.passed }}
+          FAILED: ${{ steps.run_html.outputs.failed }}
+          TOTAL: ${{ steps.run_html.outputs.total }}
+          DUR: ${{ steps.run_html.outputs.duration-ms }}
+          OUTCOME: ${{ steps.run_html.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" = 0 ]; then echo "PASS|run_html|exit 0" >> "$R"; else echo "FAIL|run_html|exit 0 ($GOT)" >> "$R"; fi
+          if [ "$TOTAL" = 1 ]; then echo "PASS|run_html|total 1" >> "$R"; else echo "FAIL|run_html|total 1 ($GOT)" >> "$R"; fi
+          if [ -s bruno/out/report.html ]; then echo "PASS|run_html|html report written" >> "$R"; else echo "FAIL|run_html|html report written ($GOT)" >> "$R"; fi
+          if [ -s "$RUNNER_TEMP/bruno-junit.xml" ]; then echo "PASS|run_html|auto JUnit written" >> "$R"; else echo "FAIL|run_html|auto JUnit written ($GOT)" >> "$R"; fi
+
+      - name: "[run_bru_prefix] reset"
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[run_bru_prefix] leading 'bru ' prefix stripped"
+        id: run_bru_prefix
+        continue-on-error: true
+        uses: arpit-bruno/bruno-cli-action@31ed2e44653b27a660d0268bfdc91e8073bfda79
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: 'bru run posts.bru --env ci'
+
+      - name: "[run_bru_prefix] assert"
+        env:
+          EXIT: ${{ steps.run_bru_prefix.outputs.exit-code }}
+          PASSED: ${{ steps.run_bru_prefix.outputs.passed }}
+          FAILED: ${{ steps.run_bru_prefix.outputs.failed }}
+          TOTAL: ${{ steps.run_bru_prefix.outputs.total }}
+          DUR: ${{ steps.run_bru_prefix.outputs.duration-ms }}
+          OUTCOME: ${{ steps.run_bru_prefix.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" = 0 ]; then echo "PASS|run_bru_prefix|exit 0" >> "$R"; else echo "FAIL|run_bru_prefix|exit 0 ($GOT)" >> "$R"; fi
+          if [ "$TOTAL" = 1 ]; then echo "PASS|run_bru_prefix|total 1" >> "$R"; else echo "FAIL|run_bru_prefix|total 1 ($GOT)" >> "$R"; fi
+          if [ -s "$RUNNER_TEMP/bruno-junit.xml" ]; then echo "PASS|run_bru_prefix|auto JUnit written" >> "$R"; else echo "FAIL|run_bru_prefix|auto JUnit written ($GOT)" >> "$R"; fi
+
+      - name: "[run_quoted] reset"
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[run_quoted] quoted arg with spaces"
+        id: run_quoted
+        continue-on-error: true
+        uses: arpit-bruno/bruno-cli-action@31ed2e44653b27a660d0268bfdc91e8073bfda79
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: 'run posts.bru --env ci --env-var "greeting=hello world"'
+
+      - name: "[run_quoted] assert"
+        env:
+          EXIT: ${{ steps.run_quoted.outputs.exit-code }}
+          PASSED: ${{ steps.run_quoted.outputs.passed }}
+          FAILED: ${{ steps.run_quoted.outputs.failed }}
+          TOTAL: ${{ steps.run_quoted.outputs.total }}
+          DUR: ${{ steps.run_quoted.outputs.duration-ms }}
+          OUTCOME: ${{ steps.run_quoted.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" = 0 ]; then echo "PASS|run_quoted|exit 0" >> "$R"; else echo "FAIL|run_quoted|exit 0 ($GOT)" >> "$R"; fi
+          if [ "$TOTAL" = 1 ]; then echo "PASS|run_quoted|total 1" >> "$R"; else echo "FAIL|run_quoted|total 1 ($GOT)" >> "$R"; fi
+
+      - name: "[run_folded] reset"
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[run_folded] folded multi-line command (>-)"
+        id: run_folded
+        continue-on-error: true
+        uses: arpit-bruno/bruno-cli-action@31ed2e44653b27a660d0268bfdc91e8073bfda79
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: >-
+            run posts.bru users.bru
+            --env ci
+
+      - name: "[run_folded] assert"
+        env:
+          EXIT: ${{ steps.run_folded.outputs.exit-code }}
+          PASSED: ${{ steps.run_folded.outputs.passed }}
+          FAILED: ${{ steps.run_folded.outputs.failed }}
+          TOTAL: ${{ steps.run_folded.outputs.total }}
+          DUR: ${{ steps.run_folded.outputs.duration-ms }}
+          OUTCOME: ${{ steps.run_folded.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" = 0 ]; then echo "PASS|run_folded|exit 0" >> "$R"; else echo "FAIL|run_folded|exit 0 ($GOT)" >> "$R"; fi
+          if [ "$TOTAL" = 2 ]; then echo "PASS|run_folded|total 2" >> "$R"; else echo "FAIL|run_folded|total 2 ($GOT)" >> "$R"; fi
+
+      - name: "[run_folder] reset"
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[run_folder] run whole collection via path arg"
+        id: run_folder
+        continue-on-error: true
+        uses: arpit-bruno/bruno-cli-action@31ed2e44653b27a660d0268bfdc91e8073bfda79
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: 'run . --env ci'
+
+      - name: "[run_folder] assert"
+        env:
+          EXIT: ${{ steps.run_folder.outputs.exit-code }}
+          PASSED: ${{ steps.run_folder.outputs.passed }}
+          FAILED: ${{ steps.run_folder.outputs.failed }}
+          TOTAL: ${{ steps.run_folder.outputs.total }}
+          DUR: ${{ steps.run_folder.outputs.duration-ms }}
+          OUTCOME: ${{ steps.run_folder.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" != 0 ]; then echo "PASS|run_folder|exit non-zero (intentional-fail)" >> "$R"; else echo "FAIL|run_folder|exit non-zero (intentional-fail) ($GOT)" >> "$R"; fi
+          if [ "$TOTAL" = 3 ]; then echo "PASS|run_folder|total 3" >> "$R"; else echo "FAIL|run_folder|total 3 ($GOT)" >> "$R"; fi
+
+      - name: "[docs] reset"
+        if: ${{ matrix.bru != '3.0.0' }}
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[docs] docs generate"
+        id: docs
+        if: ${{ matrix.bru != '3.0.0' }}
+        continue-on-error: true
+        uses: arpit-bruno/bruno-cli-action@31ed2e44653b27a660d0268bfdc91e8073bfda79
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: 'docs generate --output out/api.html --no-git-link'
+
+      - name: "[docs] assert"
+        if: ${{ matrix.bru != '3.0.0' }}
+        env:
+          EXIT: ${{ steps.docs.outputs.exit-code }}
+          PASSED: ${{ steps.docs.outputs.passed }}
+          FAILED: ${{ steps.docs.outputs.failed }}
+          TOTAL: ${{ steps.docs.outputs.total }}
+          DUR: ${{ steps.docs.outputs.duration-ms }}
+          OUTCOME: ${{ steps.docs.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" = 0 ]; then echo "PASS|docs|exit 0" >> "$R"; else echo "FAIL|docs|exit 0 ($GOT)" >> "$R"; fi
+          if [ "$OUTCOME" = success ]; then echo "PASS|docs|outcome success" >> "$R"; else echo "FAIL|docs|outcome success ($GOT)" >> "$R"; fi
+          if [ -s bruno/out/api.html ]; then echo "PASS|docs|html written" >> "$R"; else echo "FAIL|docs|html written ($GOT)" >> "$R"; fi
+          if [ "$PASSED$FAILED$TOTAL$DUR" = 0000 ]; then echo "PASS|docs|counts zero" >> "$R"; else echo "FAIL|docs|counts zero ($GOT)" >> "$R"; fi
+          if [ ! -e "$RUNNER_TEMP/bruno-junit.xml" ]; then echo "PASS|docs|no auto JUnit" >> "$R"; else echo "FAIL|docs|no auto JUnit ($GOT)" >> "$R"; fi
+
+      - name: "[docs_bru_prefix] reset"
+        if: ${{ matrix.bru != '3.0.0' }}
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[docs_bru_prefix] bru docs generate (prefix on non-run)"
+        id: docs_bru_prefix
+        if: ${{ matrix.bru != '3.0.0' }}
+        continue-on-error: true
+        uses: arpit-bruno/bruno-cli-action@31ed2e44653b27a660d0268bfdc91e8073bfda79
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: 'bru docs generate --output out/api2.html'
+
+      - name: "[docs_bru_prefix] assert"
+        if: ${{ matrix.bru != '3.0.0' }}
+        env:
+          EXIT: ${{ steps.docs_bru_prefix.outputs.exit-code }}
+          PASSED: ${{ steps.docs_bru_prefix.outputs.passed }}
+          FAILED: ${{ steps.docs_bru_prefix.outputs.failed }}
+          TOTAL: ${{ steps.docs_bru_prefix.outputs.total }}
+          DUR: ${{ steps.docs_bru_prefix.outputs.duration-ms }}
+          OUTCOME: ${{ steps.docs_bru_prefix.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" = 0 ]; then echo "PASS|docs_bru_prefix|exit 0" >> "$R"; else echo "FAIL|docs_bru_prefix|exit 0 ($GOT)" >> "$R"; fi
+          if [ -s bruno/out/api2.html ]; then echo "PASS|docs_bru_prefix|html written" >> "$R"; else echo "FAIL|docs_bru_prefix|html written ($GOT)" >> "$R"; fi
+          if [ "$PASSED$FAILED$TOTAL$DUR" = 0000 ]; then echo "PASS|docs_bru_prefix|counts zero" >> "$R"; else echo "FAIL|docs_bru_prefix|counts zero ($GOT)" >> "$R"; fi
+
+      - name: "[import_ok] reset"
+        if: ${{ matrix.bru != '3.0.0' }}
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[import_ok] import openapi"
+        id: import_ok
+        if: ${{ matrix.bru != '3.0.0' }}
+        continue-on-error: true
+        uses: arpit-bruno/bruno-cli-action@31ed2e44653b27a660d0268bfdc91e8073bfda79
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: .
+          command: 'import openapi --source fixtures/openapi.yaml --output out/imported --collection-name "Consumer import"'
+
+      - name: "[import_ok] assert"
+        if: ${{ matrix.bru != '3.0.0' }}
+        env:
+          EXIT: ${{ steps.import_ok.outputs.exit-code }}
+          PASSED: ${{ steps.import_ok.outputs.passed }}
+          FAILED: ${{ steps.import_ok.outputs.failed }}
+          TOTAL: ${{ steps.import_ok.outputs.total }}
+          DUR: ${{ steps.import_ok.outputs.duration-ms }}
+          OUTCOME: ${{ steps.import_ok.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" = 0 ]; then echo "PASS|import_ok|exit 0" >> "$R"; else echo "FAIL|import_ok|exit 0 ($GOT)" >> "$R"; fi
+          if [ "$OUTCOME" = success ]; then echo "PASS|import_ok|outcome success" >> "$R"; else echo "FAIL|import_ok|outcome success ($GOT)" >> "$R"; fi
+          if [ -s out/imported/opencollection.yml ]; then echo "PASS|import_ok|opencollection.yml written" >> "$R"; else echo "FAIL|import_ok|opencollection.yml written ($GOT)" >> "$R"; fi
+          if [ "$(find out/imported -name '*.yml' -type f | wc -l)" -ge 2 ]; then echo "PASS|import_ok|request file written" >> "$R"; else echo "FAIL|import_ok|request file written ($GOT)" >> "$R"; fi
+          if [ "$PASSED$FAILED$TOTAL$DUR" = 0000 ]; then echo "PASS|import_ok|counts zero" >> "$R"; else echo "FAIL|import_ok|counts zero ($GOT)" >> "$R"; fi
+          if [ ! -e "$RUNNER_TEMP/bruno-junit.xml" ]; then echo "PASS|import_ok|no auto JUnit" >> "$R"; else echo "FAIL|import_ok|no auto JUnit ($GOT)" >> "$R"; fi
+
+      - name: "[import_fail] reset"
+        if: ${{ matrix.bru != '3.0.0' }}
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[import_fail] import with missing source"
+        id: import_fail
+        if: ${{ matrix.bru != '3.0.0' }}
+        continue-on-error: true
+        uses: arpit-bruno/bruno-cli-action@31ed2e44653b27a660d0268bfdc91e8073bfda79
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: .
+          command: 'import openapi --source fixtures/missing.yaml --output out/missing --collection-name x'
+
+      - name: "[import_fail] assert"
+        if: ${{ matrix.bru != '3.0.0' }}
+        env:
+          EXIT: ${{ steps.import_fail.outputs.exit-code }}
+          PASSED: ${{ steps.import_fail.outputs.passed }}
+          FAILED: ${{ steps.import_fail.outputs.failed }}
+          TOTAL: ${{ steps.import_fail.outputs.total }}
+          DUR: ${{ steps.import_fail.outputs.duration-ms }}
+          OUTCOME: ${{ steps.import_fail.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" != 0 ]; then echo "PASS|import_fail|exit non-zero" >> "$R"; else echo "FAIL|import_fail|exit non-zero ($GOT)" >> "$R"; fi
+          if [ "$OUTCOME" = failure ]; then echo "PASS|import_fail|outcome failure" >> "$R"; else echo "FAIL|import_fail|outcome failure ($GOT)" >> "$R"; fi
+          if [ "$PASSED$FAILED$TOTAL$DUR" = 0000 ]; then echo "PASS|import_fail|counts zero" >> "$R"; else echo "FAIL|import_fail|counts zero ($GOT)" >> "$R"; fi
+          if [ ! -e "$RUNNER_TEMP/bruno-junit.xml" ]; then echo "PASS|import_fail|no auto JUnit" >> "$R"; else echo "FAIL|import_fail|no auto JUnit ($GOT)" >> "$R"; fi
+
+      - name: "[ws_leading] reset"
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[ws_leading] INFO: leading whitespace before bru"
+        id: ws_leading
+        continue-on-error: true
+        uses: arpit-bruno/bruno-cli-action@31ed2e44653b27a660d0268bfdc91e8073bfda79
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: '  bru run posts.bru --env ci'
+
+      - name: "[ws_leading] assert"
+        env:
+          EXIT: ${{ steps.ws_leading.outputs.exit-code }}
+          PASSED: ${{ steps.ws_leading.outputs.passed }}
+          FAILED: ${{ steps.ws_leading.outputs.failed }}
+          TOTAL: ${{ steps.ws_leading.outputs.total }}
+          DUR: ${{ steps.ws_leading.outputs.duration-ms }}
+          OUTCOME: ${{ steps.ws_leading.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          echo "INFO|ws_leading|observed: $GOT" >> "$R"
+
+      - name: "[ws_tab] reset"
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[ws_tab] INFO: tab after bru"
+        id: ws_tab
+        continue-on-error: true
+        uses: arpit-bruno/bruno-cli-action@31ed2e44653b27a660d0268bfdc91e8073bfda79
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: "bru\trun posts.bru --env ci"
+
+      - name: "[ws_tab] assert"
+        env:
+          EXIT: ${{ steps.ws_tab.outputs.exit-code }}
+          PASSED: ${{ steps.ws_tab.outputs.passed }}
+          FAILED: ${{ steps.ws_tab.outputs.failed }}
+          TOTAL: ${{ steps.ws_tab.outputs.total }}
+          DUR: ${{ steps.ws_tab.outputs.duration-ms }}
+          OUTCOME: ${{ steps.ws_tab.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          echo "INFO|ws_tab|observed: $GOT" >> "$R"
+
+      - name: Summary
+        if: always()
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          {
+            echo "| Result | Case | Check |"
+            echo "|---|---|---|"
+            sed 's/^\([^|]*\)|\([^|]*\)|\(.*\)$/| \1 | \2 | \3 |/' "$R"
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$R"
+          echo "pass=$(grep -c '^PASS' "$R") fail=$(grep -c '^FAIL' "$R" || true)"
+          ! grep -q '^FAIL' "$R"
+
+  baseline:
+    name: Published v1 baseline (bru ${{ matrix.bru }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        bru: ['latest', '3.0.0']
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: "[run_pass] reset"
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[run_pass] run passing requests, auto JUnit"
+        id: run_pass
+        continue-on-error: true
+        uses: usebruno/bruno-cli-action@v1
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: 'run posts.bru users.bru --env ci'
+
+      - name: "[run_pass] assert"
+        env:
+          EXIT: ${{ steps.run_pass.outputs.exit-code }}
+          PASSED: ${{ steps.run_pass.outputs.passed }}
+          FAILED: ${{ steps.run_pass.outputs.failed }}
+          TOTAL: ${{ steps.run_pass.outputs.total }}
+          DUR: ${{ steps.run_pass.outputs.duration-ms }}
+          OUTCOME: ${{ steps.run_pass.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" = 0 ]; then echo "PASS|run_pass|exit 0" >> "$R"; else echo "FAIL|run_pass|exit 0 ($GOT)" >> "$R"; fi
+          if [ "$OUTCOME" = success ]; then echo "PASS|run_pass|outcome success" >> "$R"; else echo "FAIL|run_pass|outcome success ($GOT)" >> "$R"; fi
+          if [ "$TOTAL" = 2 ]; then echo "PASS|run_pass|total 2" >> "$R"; else echo "FAIL|run_pass|total 2 ($GOT)" >> "$R"; fi
+          if [ "$PASSED" = 2 ]; then echo "PASS|run_pass|passed 2" >> "$R"; else echo "FAIL|run_pass|passed 2 ($GOT)" >> "$R"; fi
+          if [ "$FAILED" = 0 ]; then echo "PASS|run_pass|failed 0" >> "$R"; else echo "FAIL|run_pass|failed 0 ($GOT)" >> "$R"; fi
+          if [[ "$DUR" =~ ^[0-9]+$ ]]; then echo "PASS|run_pass|duration-ms numeric" >> "$R"; else echo "FAIL|run_pass|duration-ms numeric ($GOT)" >> "$R"; fi
+          if [ -s "$RUNNER_TEMP/bruno-junit.xml" ]; then echo "PASS|run_pass|auto JUnit written" >> "$R"; else echo "FAIL|run_pass|auto JUnit written ($GOT)" >> "$R"; fi
+
+      - name: "[run_fail] reset"
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[run_fail] run with failing request"
+        id: run_fail
+        continue-on-error: true
+        uses: usebruno/bruno-cli-action@v1
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: 'run --env ci'
+
+      - name: "[run_fail] assert"
+        env:
+          EXIT: ${{ steps.run_fail.outputs.exit-code }}
+          PASSED: ${{ steps.run_fail.outputs.passed }}
+          FAILED: ${{ steps.run_fail.outputs.failed }}
+          TOTAL: ${{ steps.run_fail.outputs.total }}
+          DUR: ${{ steps.run_fail.outputs.duration-ms }}
+          OUTCOME: ${{ steps.run_fail.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" != 0 ]; then echo "PASS|run_fail|exit non-zero" >> "$R"; else echo "FAIL|run_fail|exit non-zero ($GOT)" >> "$R"; fi
+          if [ "$OUTCOME" = failure ]; then echo "PASS|run_fail|outcome failure" >> "$R"; else echo "FAIL|run_fail|outcome failure ($GOT)" >> "$R"; fi
+          if [ "$TOTAL" = 3 ]; then echo "PASS|run_fail|total 3" >> "$R"; else echo "FAIL|run_fail|total 3 ($GOT)" >> "$R"; fi
+          if [ "$FAILED" = 1 ]; then echo "PASS|run_fail|failed 1" >> "$R"; else echo "FAIL|run_fail|failed 1 ($GOT)" >> "$R"; fi
+          if [ "$PASSED" = 2 ]; then echo "PASS|run_fail|passed 2" >> "$R"; else echo "FAIL|run_fail|passed 2 ($GOT)" >> "$R"; fi
+          if [ -s "$RUNNER_TEMP/bruno-junit.xml" ]; then echo "PASS|run_fail|auto JUnit written" >> "$R"; else echo "FAIL|run_fail|auto JUnit written ($GOT)" >> "$R"; fi
+
+      - name: "[run_junit_space] reset"
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[run_junit_space] explicit --reporter-junit <path>"
+        id: run_junit_space
+        continue-on-error: true
+        uses: usebruno/bruno-cli-action@v1
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: 'run posts.bru --env ci --reporter-junit out/space.xml'
+
+      - name: "[run_junit_space] assert"
+        env:
+          EXIT: ${{ steps.run_junit_space.outputs.exit-code }}
+          PASSED: ${{ steps.run_junit_space.outputs.passed }}
+          FAILED: ${{ steps.run_junit_space.outputs.failed }}
+          TOTAL: ${{ steps.run_junit_space.outputs.total }}
+          DUR: ${{ steps.run_junit_space.outputs.duration-ms }}
+          OUTCOME: ${{ steps.run_junit_space.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" = 0 ]; then echo "PASS|run_junit_space|exit 0" >> "$R"; else echo "FAIL|run_junit_space|exit 0 ($GOT)" >> "$R"; fi
+          if [ "$TOTAL" = 1 ]; then echo "PASS|run_junit_space|total 1" >> "$R"; else echo "FAIL|run_junit_space|total 1 ($GOT)" >> "$R"; fi
+          if [ -s bruno/out/space.xml ]; then echo "PASS|run_junit_space|user JUnit written" >> "$R"; else echo "FAIL|run_junit_space|user JUnit written ($GOT)" >> "$R"; fi
+          if [ ! -e "$RUNNER_TEMP/bruno-junit.xml" ]; then echo "PASS|run_junit_space|no auto JUnit" >> "$R"; else echo "FAIL|run_junit_space|no auto JUnit ($GOT)" >> "$R"; fi
+
+      - name: "[run_junit_eq] reset"
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[run_junit_eq] explicit --reporter-junit=<path>"
+        id: run_junit_eq
+        continue-on-error: true
+        uses: usebruno/bruno-cli-action@v1
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: 'run posts.bru --env ci --reporter-junit=out/eq.xml'
+
+      - name: "[run_junit_eq] assert"
+        env:
+          EXIT: ${{ steps.run_junit_eq.outputs.exit-code }}
+          PASSED: ${{ steps.run_junit_eq.outputs.passed }}
+          FAILED: ${{ steps.run_junit_eq.outputs.failed }}
+          TOTAL: ${{ steps.run_junit_eq.outputs.total }}
+          DUR: ${{ steps.run_junit_eq.outputs.duration-ms }}
+          OUTCOME: ${{ steps.run_junit_eq.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" = 0 ]; then echo "PASS|run_junit_eq|exit 0" >> "$R"; else echo "FAIL|run_junit_eq|exit 0 ($GOT)" >> "$R"; fi
+          if [ "$TOTAL" = 1 ]; then echo "PASS|run_junit_eq|total 1" >> "$R"; else echo "FAIL|run_junit_eq|total 1 ($GOT)" >> "$R"; fi
+          if [ -s bruno/out/eq.xml ]; then echo "PASS|run_junit_eq|user JUnit written" >> "$R"; else echo "FAIL|run_junit_eq|user JUnit written ($GOT)" >> "$R"; fi
+          if [ ! -e "$RUNNER_TEMP/bruno-junit.xml" ]; then echo "PASS|run_junit_eq|no auto JUnit" >> "$R"; else echo "FAIL|run_junit_eq|no auto JUnit ($GOT)" >> "$R"; fi
+
+      - name: "[run_html] reset"
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[run_html] run with --reporter-html plus auto JUnit"
+        id: run_html
+        continue-on-error: true
+        uses: usebruno/bruno-cli-action@v1
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: 'run posts.bru --env ci --reporter-html out/report.html'
+
+      - name: "[run_html] assert"
+        env:
+          EXIT: ${{ steps.run_html.outputs.exit-code }}
+          PASSED: ${{ steps.run_html.outputs.passed }}
+          FAILED: ${{ steps.run_html.outputs.failed }}
+          TOTAL: ${{ steps.run_html.outputs.total }}
+          DUR: ${{ steps.run_html.outputs.duration-ms }}
+          OUTCOME: ${{ steps.run_html.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" = 0 ]; then echo "PASS|run_html|exit 0" >> "$R"; else echo "FAIL|run_html|exit 0 ($GOT)" >> "$R"; fi
+          if [ "$TOTAL" = 1 ]; then echo "PASS|run_html|total 1" >> "$R"; else echo "FAIL|run_html|total 1 ($GOT)" >> "$R"; fi
+          if [ -s bruno/out/report.html ]; then echo "PASS|run_html|html report written" >> "$R"; else echo "FAIL|run_html|html report written ($GOT)" >> "$R"; fi
+          if [ -s "$RUNNER_TEMP/bruno-junit.xml" ]; then echo "PASS|run_html|auto JUnit written" >> "$R"; else echo "FAIL|run_html|auto JUnit written ($GOT)" >> "$R"; fi
+
+      - name: "[run_bru_prefix] reset"
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[run_bru_prefix] leading 'bru ' prefix stripped"
+        id: run_bru_prefix
+        continue-on-error: true
+        uses: usebruno/bruno-cli-action@v1
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: 'bru run posts.bru --env ci'
+
+      - name: "[run_bru_prefix] assert"
+        env:
+          EXIT: ${{ steps.run_bru_prefix.outputs.exit-code }}
+          PASSED: ${{ steps.run_bru_prefix.outputs.passed }}
+          FAILED: ${{ steps.run_bru_prefix.outputs.failed }}
+          TOTAL: ${{ steps.run_bru_prefix.outputs.total }}
+          DUR: ${{ steps.run_bru_prefix.outputs.duration-ms }}
+          OUTCOME: ${{ steps.run_bru_prefix.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" = 0 ]; then echo "PASS|run_bru_prefix|exit 0" >> "$R"; else echo "FAIL|run_bru_prefix|exit 0 ($GOT)" >> "$R"; fi
+          if [ "$TOTAL" = 1 ]; then echo "PASS|run_bru_prefix|total 1" >> "$R"; else echo "FAIL|run_bru_prefix|total 1 ($GOT)" >> "$R"; fi
+          if [ -s "$RUNNER_TEMP/bruno-junit.xml" ]; then echo "PASS|run_bru_prefix|auto JUnit written" >> "$R"; else echo "FAIL|run_bru_prefix|auto JUnit written ($GOT)" >> "$R"; fi
+
+      - name: "[run_quoted] reset"
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[run_quoted] quoted arg with spaces"
+        id: run_quoted
+        continue-on-error: true
+        uses: usebruno/bruno-cli-action@v1
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: 'run posts.bru --env ci --env-var "greeting=hello world"'
+
+      - name: "[run_quoted] assert"
+        env:
+          EXIT: ${{ steps.run_quoted.outputs.exit-code }}
+          PASSED: ${{ steps.run_quoted.outputs.passed }}
+          FAILED: ${{ steps.run_quoted.outputs.failed }}
+          TOTAL: ${{ steps.run_quoted.outputs.total }}
+          DUR: ${{ steps.run_quoted.outputs.duration-ms }}
+          OUTCOME: ${{ steps.run_quoted.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" = 0 ]; then echo "PASS|run_quoted|exit 0" >> "$R"; else echo "FAIL|run_quoted|exit 0 ($GOT)" >> "$R"; fi
+          if [ "$TOTAL" = 1 ]; then echo "PASS|run_quoted|total 1" >> "$R"; else echo "FAIL|run_quoted|total 1 ($GOT)" >> "$R"; fi
+
+      - name: "[run_folded] reset"
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[run_folded] folded multi-line command (>-)"
+        id: run_folded
+        continue-on-error: true
+        uses: usebruno/bruno-cli-action@v1
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: >-
+            run posts.bru users.bru
+            --env ci
+
+      - name: "[run_folded] assert"
+        env:
+          EXIT: ${{ steps.run_folded.outputs.exit-code }}
+          PASSED: ${{ steps.run_folded.outputs.passed }}
+          FAILED: ${{ steps.run_folded.outputs.failed }}
+          TOTAL: ${{ steps.run_folded.outputs.total }}
+          DUR: ${{ steps.run_folded.outputs.duration-ms }}
+          OUTCOME: ${{ steps.run_folded.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" = 0 ]; then echo "PASS|run_folded|exit 0" >> "$R"; else echo "FAIL|run_folded|exit 0 ($GOT)" >> "$R"; fi
+          if [ "$TOTAL" = 2 ]; then echo "PASS|run_folded|total 2" >> "$R"; else echo "FAIL|run_folded|total 2 ($GOT)" >> "$R"; fi
+
+      - name: "[run_folder] reset"
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[run_folder] run whole collection via path arg"
+        id: run_folder
+        continue-on-error: true
+        uses: usebruno/bruno-cli-action@v1
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: 'run . --env ci'
+
+      - name: "[run_folder] assert"
+        env:
+          EXIT: ${{ steps.run_folder.outputs.exit-code }}
+          PASSED: ${{ steps.run_folder.outputs.passed }}
+          FAILED: ${{ steps.run_folder.outputs.failed }}
+          TOTAL: ${{ steps.run_folder.outputs.total }}
+          DUR: ${{ steps.run_folder.outputs.duration-ms }}
+          OUTCOME: ${{ steps.run_folder.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" != 0 ]; then echo "PASS|run_folder|exit non-zero (intentional-fail)" >> "$R"; else echo "FAIL|run_folder|exit non-zero (intentional-fail) ($GOT)" >> "$R"; fi
+          if [ "$TOTAL" = 3 ]; then echo "PASS|run_folder|total 3" >> "$R"; else echo "FAIL|run_folder|total 3 ($GOT)" >> "$R"; fi
+
+      - name: "[docs] reset"
+        if: ${{ matrix.bru != '3.0.0' }}
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[docs] docs generate"
+        id: docs
+        if: ${{ matrix.bru != '3.0.0' }}
+        continue-on-error: true
+        uses: usebruno/bruno-cli-action@v1
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: 'docs generate --output out/api.html --no-git-link'
+
+      - name: "[docs] assert"
+        if: ${{ matrix.bru != '3.0.0' }}
+        env:
+          EXIT: ${{ steps.docs.outputs.exit-code }}
+          PASSED: ${{ steps.docs.outputs.passed }}
+          FAILED: ${{ steps.docs.outputs.failed }}
+          TOTAL: ${{ steps.docs.outputs.total }}
+          DUR: ${{ steps.docs.outputs.duration-ms }}
+          OUTCOME: ${{ steps.docs.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" = 0 ]; then echo "PASS|docs|exit 0" >> "$R"; else echo "FAIL|docs|exit 0 ($GOT)" >> "$R"; fi
+          if [ "$OUTCOME" = success ]; then echo "PASS|docs|outcome success" >> "$R"; else echo "FAIL|docs|outcome success ($GOT)" >> "$R"; fi
+          if [ -s bruno/out/api.html ]; then echo "PASS|docs|html written" >> "$R"; else echo "FAIL|docs|html written ($GOT)" >> "$R"; fi
+          if [ "$PASSED$FAILED$TOTAL$DUR" = 0000 ]; then echo "PASS|docs|counts zero" >> "$R"; else echo "FAIL|docs|counts zero ($GOT)" >> "$R"; fi
+          if [ ! -e "$RUNNER_TEMP/bruno-junit.xml" ]; then echo "PASS|docs|no auto JUnit" >> "$R"; else echo "FAIL|docs|no auto JUnit ($GOT)" >> "$R"; fi
+
+      - name: "[docs_bru_prefix] reset"
+        if: ${{ matrix.bru != '3.0.0' }}
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[docs_bru_prefix] bru docs generate (prefix on non-run)"
+        id: docs_bru_prefix
+        if: ${{ matrix.bru != '3.0.0' }}
+        continue-on-error: true
+        uses: usebruno/bruno-cli-action@v1
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: 'bru docs generate --output out/api2.html'
+
+      - name: "[docs_bru_prefix] assert"
+        if: ${{ matrix.bru != '3.0.0' }}
+        env:
+          EXIT: ${{ steps.docs_bru_prefix.outputs.exit-code }}
+          PASSED: ${{ steps.docs_bru_prefix.outputs.passed }}
+          FAILED: ${{ steps.docs_bru_prefix.outputs.failed }}
+          TOTAL: ${{ steps.docs_bru_prefix.outputs.total }}
+          DUR: ${{ steps.docs_bru_prefix.outputs.duration-ms }}
+          OUTCOME: ${{ steps.docs_bru_prefix.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" = 0 ]; then echo "PASS|docs_bru_prefix|exit 0" >> "$R"; else echo "FAIL|docs_bru_prefix|exit 0 ($GOT)" >> "$R"; fi
+          if [ -s bruno/out/api2.html ]; then echo "PASS|docs_bru_prefix|html written" >> "$R"; else echo "FAIL|docs_bru_prefix|html written ($GOT)" >> "$R"; fi
+          if [ "$PASSED$FAILED$TOTAL$DUR" = 0000 ]; then echo "PASS|docs_bru_prefix|counts zero" >> "$R"; else echo "FAIL|docs_bru_prefix|counts zero ($GOT)" >> "$R"; fi
+
+      - name: "[import_ok] reset"
+        if: ${{ matrix.bru != '3.0.0' }}
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[import_ok] import openapi"
+        id: import_ok
+        if: ${{ matrix.bru != '3.0.0' }}
+        continue-on-error: true
+        uses: usebruno/bruno-cli-action@v1
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: .
+          command: 'import openapi --source fixtures/openapi.yaml --output out/imported --collection-name "Consumer import"'
+
+      - name: "[import_ok] assert"
+        if: ${{ matrix.bru != '3.0.0' }}
+        env:
+          EXIT: ${{ steps.import_ok.outputs.exit-code }}
+          PASSED: ${{ steps.import_ok.outputs.passed }}
+          FAILED: ${{ steps.import_ok.outputs.failed }}
+          TOTAL: ${{ steps.import_ok.outputs.total }}
+          DUR: ${{ steps.import_ok.outputs.duration-ms }}
+          OUTCOME: ${{ steps.import_ok.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" = 0 ]; then echo "PASS|import_ok|exit 0" >> "$R"; else echo "FAIL|import_ok|exit 0 ($GOT)" >> "$R"; fi
+          if [ "$OUTCOME" = success ]; then echo "PASS|import_ok|outcome success" >> "$R"; else echo "FAIL|import_ok|outcome success ($GOT)" >> "$R"; fi
+          if [ -s out/imported/opencollection.yml ]; then echo "PASS|import_ok|opencollection.yml written" >> "$R"; else echo "FAIL|import_ok|opencollection.yml written ($GOT)" >> "$R"; fi
+          if [ "$(find out/imported -name '*.yml' -type f | wc -l)" -ge 2 ]; then echo "PASS|import_ok|request file written" >> "$R"; else echo "FAIL|import_ok|request file written ($GOT)" >> "$R"; fi
+          if [ "$PASSED$FAILED$TOTAL$DUR" = 0000 ]; then echo "PASS|import_ok|counts zero" >> "$R"; else echo "FAIL|import_ok|counts zero ($GOT)" >> "$R"; fi
+          if [ ! -e "$RUNNER_TEMP/bruno-junit.xml" ]; then echo "PASS|import_ok|no auto JUnit" >> "$R"; else echo "FAIL|import_ok|no auto JUnit ($GOT)" >> "$R"; fi
+
+      - name: "[import_fail] reset"
+        if: ${{ matrix.bru != '3.0.0' }}
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[import_fail] import with missing source"
+        id: import_fail
+        if: ${{ matrix.bru != '3.0.0' }}
+        continue-on-error: true
+        uses: usebruno/bruno-cli-action@v1
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: .
+          command: 'import openapi --source fixtures/missing.yaml --output out/missing --collection-name x'
+
+      - name: "[import_fail] assert"
+        if: ${{ matrix.bru != '3.0.0' }}
+        env:
+          EXIT: ${{ steps.import_fail.outputs.exit-code }}
+          PASSED: ${{ steps.import_fail.outputs.passed }}
+          FAILED: ${{ steps.import_fail.outputs.failed }}
+          TOTAL: ${{ steps.import_fail.outputs.total }}
+          DUR: ${{ steps.import_fail.outputs.duration-ms }}
+          OUTCOME: ${{ steps.import_fail.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          if [ "$EXIT" != 0 ]; then echo "PASS|import_fail|exit non-zero" >> "$R"; else echo "FAIL|import_fail|exit non-zero ($GOT)" >> "$R"; fi
+          if [ "$OUTCOME" = failure ]; then echo "PASS|import_fail|outcome failure" >> "$R"; else echo "FAIL|import_fail|outcome failure ($GOT)" >> "$R"; fi
+          if [ "$PASSED$FAILED$TOTAL$DUR" = 0000 ]; then echo "PASS|import_fail|counts zero" >> "$R"; else echo "FAIL|import_fail|counts zero ($GOT)" >> "$R"; fi
+          if [ ! -e "$RUNNER_TEMP/bruno-junit.xml" ]; then echo "PASS|import_fail|no auto JUnit" >> "$R"; else echo "FAIL|import_fail|no auto JUnit ($GOT)" >> "$R"; fi
+
+      - name: "[ws_leading] reset"
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[ws_leading] INFO: leading whitespace before bru"
+        id: ws_leading
+        continue-on-error: true
+        uses: usebruno/bruno-cli-action@v1
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: '  bru run posts.bru --env ci'
+
+      - name: "[ws_leading] assert"
+        env:
+          EXIT: ${{ steps.ws_leading.outputs.exit-code }}
+          PASSED: ${{ steps.ws_leading.outputs.passed }}
+          FAILED: ${{ steps.ws_leading.outputs.failed }}
+          TOTAL: ${{ steps.ws_leading.outputs.total }}
+          DUR: ${{ steps.ws_leading.outputs.duration-ms }}
+          OUTCOME: ${{ steps.ws_leading.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          echo "INFO|ws_leading|observed: $GOT" >> "$R"
+
+      - name: "[ws_tab] reset"
+        run: |
+          rm -f "$RUNNER_TEMP/bruno-junit.xml"
+          rm -rf bruno/out out && mkdir -p bruno/out out
+
+      - name: "[ws_tab] INFO: tab after bru"
+        id: ws_tab
+        continue-on-error: true
+        uses: usebruno/bruno-cli-action@v1
+        with:
+          bru-version: ${{ matrix.bru }}
+          working-directory: bruno
+          command: "bru\trun posts.bru --env ci"
+
+      - name: "[ws_tab] assert"
+        env:
+          EXIT: ${{ steps.ws_tab.outputs.exit-code }}
+          PASSED: ${{ steps.ws_tab.outputs.passed }}
+          FAILED: ${{ steps.ws_tab.outputs.failed }}
+          TOTAL: ${{ steps.ws_tab.outputs.total }}
+          DUR: ${{ steps.ws_tab.outputs.duration-ms }}
+          OUTCOME: ${{ steps.ws_tab.outcome }}
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          GOT="exit=$EXIT outcome=$OUTCOME passed=$PASSED failed=$FAILED total=$TOTAL duration-ms=$DUR autojunit=$([ -e "$RUNNER_TEMP/bruno-junit.xml" ] && echo yes || echo no)"
+          echo "$GOT"
+          echo "INFO|ws_tab|observed: $GOT" >> "$R"
+
+      - name: Summary
+        if: always()
+        run: |
+          R="$RUNNER_TEMP/results.txt"
+          {
+            echo "| Result | Case | Check |"
+            echo "|---|---|---|"
+            sed 's/^\([^|]*\)|\([^|]*\)|\(.*\)$/| \1 | \2 | \3 |/' "$R"
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$R"
+          echo "pass=$(grep -c '^PASS' "$R") fail=$(grep -c '^FAIL' "$R" || true)"
+          ! grep -q '^FAIL' "$R"
+
